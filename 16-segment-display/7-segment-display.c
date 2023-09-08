@@ -10,6 +10,7 @@
 #define DIGIT_COLS                      5
 #define DIGIT_ROWS                      5
 #define BLANK_CHAR      				' '
+#define ALL_CHARS                       ('~' + 1)
 
 // macro
 #define CHECK_BIT(num, bit_position)	(((num) >> (bit_position)) & 1)
@@ -54,7 +55,7 @@ const uint32_t SEGMENT_ASCII[96] = {
 	0b01000100000000000, /* - */
 	0b10000000000000000, /* . */
 	0b00100010000000000, /* / */
-	0b00100010011111111, /* 0 */
+	0b00010010011111111, /* 0 */
 	0b00000010000001100, /* 1 */
 	0b01000100001110111, /* 2 */
 	0b00000100000111111, /* 3 */
@@ -132,22 +133,60 @@ const uint32_t SEGMENT_ASCII[96] = {
 	0b01010001000010010, /* { */
 	0b00010001000000000, /* | */
 	0b00010101000100001, /* } */
-	0b01100110000000000, /* ~ */
+	0xFFFFFFFF, //0b01100110000000000, /* ~ */
 	0b00000000000000000, /* (del) */
 };
 
 // function prototype
 void PrintString(char *string, uint8_t display_size, char display_symbol);
+void DrawSegmentA(char **buffer, int offset, int display_size, char display_symbol);
+void DrawSegmentB(char **buffer, int offset, int display_size, char display_symbol);
+void DrawSegmentC(char **buffer, int offset, int display_size, char display_symbol);
+void DrawSegmentD(char **buffer, int offset, int display_size, char display_symbol);
+void DrawSegmentE(char **buffer, int offset, int display_size, char display_symbol);
+void DrawSegmentF(char **buffer, int offset, int display_size, char display_symbol);
+void DrawSegmentG(char **buffer, int offset, int display_size, char display_symbol);
+void DrawSegmentH(char **buffer, int offset, int display_size, char display_symbol);
+void DrawSegmentK(char **buffer, int offset, int display_size, char display_symbol);
+void DrawSegmentM(char **buffer, int offset, int display_size, char display_symbol);
+void DrawSegmentN(char **buffer, int offset, int display_size, char display_symbol);
+void DrawSegmentU(char **buffer, int offset, int display_size, char display_symbol);
+void DrawSegmentP(char **buffer, int offset, int display_size, char display_symbol);
+void DrawSegmentT(char **buffer, int offset, int display_size, char display_symbol);
+void DrawSegmentS(char **buffer, int offset, int display_size, char display_symbol);
+void DrawSegmentR(char **buffer, int offset, int display_size, char display_symbol);
+void DrawSegmentDP(char **buffer, int offset, int display_size, char display_symbol);
+
+// Function pointer
+void (*DRAW_SEGMENTS[SEGMENT_TOTAL])(char**, int, int, char) = {
+    DrawSegmentA,
+    DrawSegmentB,
+    DrawSegmentC,
+    DrawSegmentD,
+    DrawSegmentE,
+    DrawSegmentF,
+    DrawSegmentG,
+    DrawSegmentH,
+    DrawSegmentK,
+    DrawSegmentM,
+    DrawSegmentN,
+    DrawSegmentU,
+    DrawSegmentP,
+    DrawSegmentT,
+    DrawSegmentS,
+    DrawSegmentR,
+    DrawSegmentDP,
+};
 
 // main
 int main()
 {
-    char *string 		= "A"; 
-    int display_size 	= 1;
-    char display_symbol = 'a';
-
+    char *string 		= "~"; 
+    int display_size 	= 5;
+    char display_symbol = '#';
+    
     PrintString(string, display_size, display_symbol);
-
+    
     return 0;
 }
 
@@ -156,28 +195,42 @@ void PrintString(char *string, uint8_t display_size, char display_symbol)
 {
     int total_digit 	= 0;
     int total_row 		= 0;
-    int col_per_digit 	= 0;
+    int col_per_digit   = 0;
     int total_col 		= 0;
 
     total_digit 	= strlen(string);
     total_row       = DIGIT_ROWS + (2 * display_size);  // * 2 porque há dois segmentos que crescem na vertical
-    col_per_digit   = DIGIT_COLS + display_size + 1;    // + 1 espaço entre os digitos
+    col_per_digit   = DIGIT_COLS + display_size * 2;    // * 2 espaço entre os digitos
     total_col       = col_per_digit * total_digit;
 
-    int digit = 0;
-    int digits[total_digit];
-    char segments[total_row][total_col];
+    //char segments[total_row][total_col];
+    char **display;
     
     // Initialize segments with blank spaces
+    display = (char**)malloc(total_row * sizeof(char*));
     for (int row_idx = 0; row_idx < total_row; row_idx++) 
     {
+        display[row_idx] = (char*)malloc(total_col * sizeof(char));
         for (int col_idx = 0; col_idx < total_col; col_idx++) 
         {
-            segments[row_idx][col_idx] = display_symbol; //BLANK_CHAR;
+            display[row_idx][col_idx] = BLANK_CHAR;
         }
     }
     
-    // 
+    // Construct the segments for each digit
+    for (int digit_idx = 0; digit_idx < total_digit; digit_idx++) 
+    {
+        char digit = string[digit_idx];
+        
+        for (int seg = 0; seg < SEGMENT_TOTAL; seg++) 
+        {
+            if (CHECK_BIT(SEGMENT_ASCII[digit - 32], seg)) 
+            {
+                int offset = col_per_digit*digit_idx;
+                DRAW_SEGMENTS[seg](display, offset, display_size, display_symbol);
+            }
+        }
+    }
 
     // Print the segments
     for (int row_idx = 0; row_idx < total_row; row_idx++)
@@ -187,7 +240,7 @@ void PrintString(char *string, uint8_t display_size, char display_symbol)
         
         for (int col_idx = 0; col_idx < total_col; col_idx++)
         {
-            if (segments[row_idx][col_idx] == display_symbol)
+            if (display[row_idx][col_idx] == display_symbol)
             {
                 last_col_idx = col_idx + 1;
             }
@@ -195,11 +248,123 @@ void PrintString(char *string, uint8_t display_size, char display_symbol)
         
         for (int col_idx = 0; col_idx < last_col_idx; col_idx++)
         {
-            putchar(segments[row_idx][col_idx]);
+            putchar(display[row_idx][col_idx]);
         }
         
         putchar('\n');
     }
+}
+void DrawSegmentA(char **buffer, int offset, int display_size, char display_symbol)
+{
+    // horizontal
+    const int COL_IDX = 1;
+    
+    for (int i = 1; i <= display_size; i++) 
+    {
+        buffer[0][offset + i] = display_symbol;
+    }
+}
+void DrawSegmentB(char **buffer, int offset, int display_size, char display_symbol)
+{
+    // horizontal
+    const int COL_IDX = 4;
+    
+    for (int i = 1; i <= display_size; i++) 
+    {
+        buffer[0][offset + display_size + 1 + i] = display_symbol;
+    }
+}
+void DrawSegmentC(char **buffer, int offset, int display_size, char display_symbol)
+{
+    // vertical
+    for (int i = 1; i <= display_size; i++) 
+    {
+        buffer[i][offset + display_size * 2 + 2] = display_symbol;
+    }
+}
+void DrawSegmentD(char **buffer, int offset, int display_size, char display_symbol)
+{
+    // vertical
+    for (int i = 1; i <= display_size; i++) 
+    {
+        buffer[i + display_size + 1][offset + display_size * 2 + 2] = display_symbol;
+    }
+}
+void DrawSegmentE(char **buffer, int offset, int display_size, char display_symbol)
+{
+    // horizontal
+    for (int i = 1; i <= display_size; i++) 
+    {
+        buffer[display_size * 2 + 2][offset + display_size + 1 + i] = display_symbol;
+    }
+}
+void DrawSegmentF(char **buffer, int offset, int display_size, char display_symbol)
+{
+    // horizontal
+    for (int i = 1; i <= display_size; i++) 
+    {
+        buffer[display_size * 2 + 2][offset + i] = display_symbol;
+    }
+}
+void DrawSegmentG(char **buffer, int offset, int display_size, char display_symbol)
+{
+    // vertical
+    for (int i = 1; i <= display_size; i++) 
+    {
+        buffer[i + display_size + 1][offset] = display_symbol;
+    }
+}
+void DrawSegmentH(char **buffer, int offset, int display_size, char display_symbol)
+{
+    // vertical
+    for (int i = 1; i <= display_size; i++) 
+    {
+        buffer[i][offset] = display_symbol;
+    }
+}
+void DrawSegmentK(char **buffer, int offset, int display_size, char display_symbol)
+{
+    // diagonal
+    for (int i = 1; i <= display_size; i++) 
+    {
+        buffer[i][i] = display_symbol;
+    }
+}
+void DrawSegmentM(char **buffer, int offset, int display_size, char display_symbol)
+{
+    // vertical
+    for (int i = 1; i <= display_size; i++) 
+    {
+        buffer[i][offset + display_size + 1] = display_symbol;
+    }
+}
+void DrawSegmentN(char **buffer, int offset, int display_size, char display_symbol)
+{
+    // diagonal
+}
+void DrawSegmentU(char **buffer, int offset, int display_size, char display_symbol)
+{
+    // horizontal
+}
+void DrawSegmentP(char **buffer, int offset, int display_size, char display_symbol)
+{
+    // horizontal
+}
+void DrawSegmentT(char **buffer, int offset, int display_size, char display_symbol)
+{
+    // diagonal
+}
+void DrawSegmentS(char **buffer, int offset, int display_size, char display_symbol)
+{
+    // vertical
+}
+void DrawSegmentR(char **buffer, int offset, int display_size, char display_symbol)
+{
+    // diagonal
+}
+void DrawSegmentDP(char **buffer, int offset, int display_size, char display_symbol)
+{
+    // não interessa
 }
 
 // end
